@@ -1,8 +1,13 @@
-*.js
-!jest.config.js
-*.d.ts
-node_modules
+node_modules/
+cdk.out/
+.env
+.aws/
+dist/
+build/
+.vscode/
+.idea/
+.DS_Store
 
-# CDK asset staging directory
-.cdk.staging
-cdk.out
+
+/.github/copilot-instructions.md
+
