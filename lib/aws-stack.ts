@@ -1,6 +1,8 @@
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
 export class AwsStack extends cdk.Stack {
@@ -66,4 +68,44 @@ export class AwsStack extends cdk.Stack {
       description: "VPC ID for Investor Vault",
     });
   }
+  const dbSecret = new secretsmanager.Secret(this, "InvestorDbSecret', {
+       secretName: 'InvestorDbCredentials',
+       generateSecretString: {
+          secretStringTemplate: JSON.stringify({ username: 'investor_admin' }),
+          generateStringKey: 'password',
+          excludePunctuation: true,
+          includeSpace: false,
+       },
+
+      });
+
+      //Create Postges Database
+      const dbInstance = new rds.DatabaseInstance(this, 'InvestorPostgres', {
+           engine: rds.DatabaseInstanceEngine.postgres({
+           version: rds.PostgresEngineVersion.VER_16,
+           }),
+           instanceType: ec2.InstanceType.of(
+            ec2.InstanceClass.T3,
+            ec2.InstanceSize.MICRO
+           ),
+           vpc, 
+           vpcSubnets: {
+               subnetType: ec2.SubnetType.PRIVATE_ISOLATED,,
+           },
+           credentials: rds.Credentials.fromSecret(dbSecret),
+           allocatedStorage: 20, //GB
+           maxAllocatedStorage: 100,
+           deleteAutomatedBackups: true,
+           removalPolicy: cdk.RemovalPolicy.DESTROY, 
+          
+
+           });new cdk.CfnOutput(this, 'DtabaseHost', { 
+            value: dbInstance.dbInstanceEndpointAddress 
+           });
+          
+     
+       }
+   
+
+
 }
