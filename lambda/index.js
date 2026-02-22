@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
-const pg = require('pg');
+const AWS = require("aws-sdk");
+const pg = require("pg");
 
 const secretsManager = new AWS.SecretsManager();
 
@@ -7,13 +7,15 @@ const secretsManager = new AWS.SecretsManager();
 async function getDbCredentials() {
   try {
     const secretArn = process.env.SECRET_ARN;
-    const secret = await secretsManager.getSecretValue({ SecretId: secretArn }).promise();
-    
+    const secret = await secretsManager
+      .getSecretValue({ SecretId: secretArn })
+      .promise();
+
     // Parse the secret
     const credentials = JSON.parse(secret.SecretString);
     return credentials;
   } catch (error) {
-    console.error('Error retrieving secret:', error);
+    console.error("Error retrieving secret:", error);
     throw error;
   }
 }
@@ -30,18 +32,20 @@ async function queryDatabase(credentials) {
 
   try {
     await client.connect();
-    console.log('Connected to database');
+    console.log("Connected to database");
 
     // Execute a simple query
-    const result = await client.query('SELECT NOW() as current_time, version() as db_version');
-    
+    const result = await client.query(
+      "SELECT NOW() as current_time, version() as db_version",
+    );
+
     return {
       success: true,
       data: result.rows,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Database query error:', error);
+    console.error("Database query error:", error);
     return {
       success: false,
       error: error.message,
@@ -53,7 +57,7 @@ async function queryDatabase(credentials) {
 
 // Lambda handler
 exports.handler = async (event) => {
-  console.log('Received event:', JSON.stringify(event));
+  console.log("Received event:", JSON.stringify(event));
 
   try {
     // Fetch credentials from Secrets Manager
@@ -66,11 +70,11 @@ exports.handler = async (event) => {
       statusCode: result.success ? 200 : 400,
       body: JSON.stringify(result),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     };
   } catch (error) {
-    console.error('Handler error:', error);
+    console.error("Handler error:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({
@@ -78,7 +82,7 @@ exports.handler = async (event) => {
         error: error.message,
       }),
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     };
   }

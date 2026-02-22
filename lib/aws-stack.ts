@@ -4,6 +4,10 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as path from "path";
 import { Construct } from "constructs";
 
@@ -108,20 +112,16 @@ export class AwsStack extends cdk.Stack {
     // PHASE 3: Lambda Functions (API & Compute Layer)
 
     // 1. Create Lambda Execution Role with least-privilege permissions
-    const lambdaExecutionRole = new iam.Role(
-      this,
-      "LambdaExecutionRole",
-      {
-        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-        description: "Lambda execution role for DB access",
-      }
-    );
+    const lambdaExecutionRole = new iam.Role(this, "LambdaExecutionRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Lambda execution role for DB access",
+    });
 
     // Allow Lambda to write logs to CloudWatch
     lambdaExecutionRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
-        "service-role/AWSLambdaVPCAccessExecutionRole"
-      )
+        "service-role/AWSLambdaVPCAccessExecutionRole",
+      ),
     );
 
     // Allow Lambda to read the DB secret from Secrets Manager
@@ -135,7 +135,7 @@ export class AwsStack extends cdk.Stack {
         vpc,
         description: "Security group for Lambda functions",
         allowAllOutbound: true,
-      }
+      },
     );
 
     // 3. Allow Lambda to connect to the database
@@ -143,7 +143,7 @@ export class AwsStack extends cdk.Stack {
     dbInstance.connections.allowFrom(
       lambdaSecurityGroup,
       ec2.Port.tcp(5432),
-      "Allow Lambda to query Postgres"
+      "Allow Lambda to query Postgres",
     );
 
     // 4. Create a basic Lambda function that queries the database
@@ -176,6 +176,84 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, "QueryDbFunctionName", {
       value: queryDbFunction.functionName,
       description: "Name of the Query DB Lambda function",
+    });
+
+    // PHASE 4: Frontend & Deployment (React + S3 + CloudFront)
+
+    // 1. Create API Gateway REST API to expose the Lambda function
+    const api = new apigateway.RestApi(this, "InvestorVaultApi", {
+      restApiName: "Investor Vault API",
+      description: "API for Investor Vault frontend",
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: ["Content-Type", "Authorization"],
+      },
+    });
+
+    // Create /query resource and attach Lambda function
+    const queryResource = api.root.addResource("query");
+    queryResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(queryDbFunction, {
+        proxy: true,
+      }),
+    );
+
+    // Output API Gateway URL
+    new cdk.CfnOutput(this, "ApiGatewayUrl", {
+      value: api.url,
+      description: "API Gateway endpoint URL",
+    });
+
+    // 2. Create S3 bucket for React frontend (with block public access removed for CloudFront)
+    const frontendBucket = new s3.Bucket(this, "InvestorVaultFrontend", {
+      bucketName: `investor-vault-frontend-${cdk.Stack.of(this).account}`,
+      versioned: true,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: true,
+        blockPublicPolicy: false,
+        ignorePublicAcls: true,
+        restrictPublicBuckets: false,
+      }),
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Create bucket policy to allow CloudFront access
+    const oai = new cloudfront.OriginAccessIdentity(this, "OAI");
+    frontendBucket.grantRead(oai);
+
+    // 3. Create CloudFront distribution for SPA routing and CDN caching
+    const distribution = new cloudfront.Distribution(this, "Distribution", {
+      defaultBehavior: {
+        origin: new origins.S3Origin(frontendBucket, {
+          originAccessIdentity: oai,
+        }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        compress: true,
+      },
+      // SPA routing: route all non-file requests to index.html
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+          ttl: cdk.Duration.minutes(5),
+        },
+      ],
+      defaultRootObject: "index.html",
+    });
+
+    // Output CloudFront domain
+    new cdk.CfnOutput(this, "CloudFrontUrl", {
+      value: `https://${distribution.domainName}`,
+      description: "CloudFront distribution URL",
+    });
+
+    new cdk.CfnOutput(this, "S3BucketName", {
+      value: frontendBucket.bucketName,
+      description: "S3 bucket for frontend files",
     });
   }
 }
