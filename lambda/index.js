@@ -28,6 +28,9 @@ async function queryDatabase(credentials) {
     user: credentials.username,
     password: credentials.password,
     database: process.env.DB_NAME,
+
+    // RDS often requires SSL connections from VPC clients; allow toggling via env var
+    ssl: process.env.DB_REQUIRE_SSL === 'true' ? { rejectUnauthorized: false } : false,
   });
 
   try {
