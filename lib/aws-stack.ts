@@ -72,6 +72,20 @@ export class AwsStack extends cdk.Stack {
       description: "VPC ID for Investor Vault",
     });
 
+    // Add VPC interface endpoints so Lambdas in PRIVATE_ISOLATED subnets
+    // can access AWS services (Secrets Manager and CloudWatch Logs)
+    vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
     // PHASE 2: Create Database & Secrets Manager
     const dbSecret = new secretsmanager.Secret(this, "InvestorDbSecret", {
       secretName: "InvestorDbCredentials",
@@ -162,6 +176,7 @@ export class AwsStack extends cdk.Stack {
         DB_PORT: "5432",
         DB_NAME: "postgres",
         SECRET_ARN: dbSecret.secretArn,
+        DB_REQUIRE_SSL: "true",
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
