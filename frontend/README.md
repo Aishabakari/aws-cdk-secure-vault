@@ -70,6 +70,7 @@ The S3 bucket name and CloudFront distribution ID are outputs from the CDK deplo
 ## 🔧 Architecture Integration
 
 The frontend:
+
 1. **Calls API Gateway** for database queries
 2. **Invokes Lambda functions** that run in the VPC
 3. **Accesses secure credentials** from Secrets Manager
