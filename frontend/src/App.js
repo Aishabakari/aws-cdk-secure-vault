@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import './App.css';
+import React, { useState } from "react";
+import axios from "axios";
+import "./App.css";
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -8,7 +8,7 @@ function App() {
   const [error, setError] = useState(null);
 
   // Get API Gateway URL from environment variable
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
   const handleQueryDatabase = async () => {
     setLoading(true);
@@ -35,14 +35,16 @@ function App() {
       <main className="App-main">
         <section className="query-section">
           <h2>Database Query Test</h2>
-          <p>Click below to execute a test query on the secure Postgres database.</p>
+          <p>
+            Click below to execute a test query on the secure Postgres database.
+          </p>
 
           <button
             onClick={handleQueryDatabase}
             disabled={loading}
             className="query-button"
           >
-            {loading ? 'Querying...' : 'Query Database'}
+            {loading ? "Querying..." : "Query Database"}
           </button>
 
           {error && (
@@ -64,8 +66,8 @@ function App() {
           <h2>Architecture Overview</h2>
           <ul>
             <li>
-              <strong>VPC:</strong> Custom Virtual Private Cloud with public & private
-              subnets
+              <strong>VPC:</strong> Custom Virtual Private Cloud with public &
+              private subnets
             </li>
             <li>
               <strong>Database:</strong> RDS Postgres in isolated private subnet
@@ -74,14 +76,15 @@ function App() {
               <strong>Compute:</strong> Lambda functions with VPC integration
             </li>
             <li>
-              <strong>Secrets:</strong> AWS Secrets Manager for secure credential
-              storage
+              <strong>Secrets:</strong> AWS Secrets Manager for secure
+              credential storage
             </li>
             <li>
               <strong>API:</strong> API Gateway for REST endpoints
             </li>
             <li>
-              <strong>Frontend:</strong> React SPA served via S3 + CloudFront CDN
+              <strong>Frontend:</strong> React SPA served via S3 + CloudFront
+              CDN
             </li>
           </ul>
         </section>
